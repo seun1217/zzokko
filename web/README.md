@@ -37,3 +37,4 @@ npm run build   # 프로덕션 빌드
 ## 배포 (Vercel)
 
 프로젝트 루트 디렉터리를 `web`으로 지정하면 나머지는 자동 감지.
+자세한 단계: [`../docs/DEPLOY.md`](../docs/DEPLOY.md)
