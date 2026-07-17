@@ -31,10 +31,16 @@
 python3 scripts/generate_ics.py > calendar/zzokko-pregnancy.ics
 ```
 
-## 📱 쪼꼬 앱 계획
+## 📱 쪼꼬 앱
 
-태교, 작명, 검진 체크리스트, 초음파 앨범 등 쪼꼬와 관련된 모든 것을 담을 앱의
-기능 제안과 로드맵: [`docs/APP_PLAN.md`](docs/APP_PLAN.md)
+태교, 작명, 검진 체크리스트, 초음파 앨범 등 쪼꼬와 관련된 모든 것을 담는 앱.
+
+- 기능 제안·로드맵: [`docs/APP_PLAN.md`](docs/APP_PLAN.md)
+- 앱 소스 (Next.js PWA): [`web/`](web/) — 실행 방법은 [`web/README.md`](web/README.md)
+
+```bash
+cd web && npm install && npm run dev   # http://localhost:3000
+```
 
 ## ⚠️ 참고
 
