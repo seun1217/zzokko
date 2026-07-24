@@ -1,23 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useLocalStorage } from "@/lib/useLocalStorage";
+import { useNames } from "@/lib/hooks";
+import type { Role } from "@/lib/family";
 import { NICKNAME } from "@/lib/pregnancy";
-
-interface NameCandidate {
-  id: string;
-  hangul: string;
-  hanja: string;
-  meaning: string;
-  dadScore: number; // 0~5
-  momScore: number; // 0~5
-}
 
 function Stars({
   value,
+  disabled,
   onChange,
 }: {
   value: number;
+  disabled?: boolean;
   onChange: (v: number) => void;
 }) {
   return (
@@ -25,11 +19,12 @@ function Stars({
       {[1, 2, 3, 4, 5].map((n) => (
         <button
           key={n}
+          disabled={disabled}
           onClick={() => onChange(n === value ? 0 : n)}
           aria-label={`${n}점`}
           className={`px-0.5 text-base ${
             n <= value ? "" : "opacity-25 grayscale"
-          }`}
+          } ${disabled ? "cursor-default" : ""}`}
         >
           ⭐
         </button>
@@ -39,47 +34,34 @@ function Stars({
 }
 
 export default function NamesPage() {
-  const [names, setNames, loaded] = useLocalStorage<NameCandidate[]>(
-    "zzokko:names:v1",
-    [],
-  );
-  const [surname, setSurname] = useLocalStorage<string>("zzokko:surname", "");
+  const { names, surname, setSurname, add, remove, vote, shared, myRole } =
+    useNames();
+  const [surnameDraft, setSurnameDraft] = useState<string | null>(null);
   const [hangul, setHangul] = useState("");
   const [hanja, setHanja] = useState("");
   const [meaning, setMeaning] = useState("");
 
-  const add = () => {
+  const submit = async () => {
     const name = hangul.trim();
     if (!name) return;
     if (names.some((n) => n.hangul === name)) {
       window.alert("이미 등록된 이름이에요!");
       return;
     }
-    setNames((prev) => [
-      {
-        id: crypto.randomUUID(),
-        hangul: name,
-        hanja: hanja.trim(),
-        meaning: meaning.trim(),
-        dadScore: 0,
-        momScore: 0,
-      },
-      ...prev,
-    ]);
+    await add(name, hanja.trim(), meaning.trim());
     setHangul("");
     setHanja("");
     setMeaning("");
   };
 
-  const setScore = (id: string, who: "dadScore" | "momScore", v: number) =>
-    setNames((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, [who]: v } : n)),
-    );
-
-  const remove = (id: string) => {
+  const confirmRemove = async (id: string) => {
     if (!window.confirm("이 후보를 삭제할까요?")) return;
-    setNames((prev) => prev.filter((n) => n.id !== id));
+    await remove(id);
   };
+
+  const canVote = (who: Role) => !shared || myRole === who;
+
+  const displaySurname = surnameDraft ?? surname;
 
   const ranked = [...names].sort(
     (a, b) => b.dadScore + b.momScore - (a.dadScore + a.momScore),
@@ -91,6 +73,13 @@ export default function NamesPage() {
         <h1 className="text-2xl font-extrabold text-choco">이름 후보 ✍️</h1>
         <p className="mt-1 text-sm text-choco-light">
           {NICKNAME}의 진짜 이름 — 둘이 별점을 매겨 함께 정해요
+          {shared && myRole && (
+            <>
+              {" "}
+              (내 별점: {myRole === "dad" ? "👨 아빠" : "👩 엄마"} 줄만
+              매길 수 있어요)
+            </>
+          )}
         </p>
       </header>
 
@@ -98,8 +87,14 @@ export default function NamesPage() {
       <section className="flex items-center gap-3 rounded-3xl bg-white/70 p-4 shadow-sm">
         <label className="text-sm font-semibold text-choco">성(姓)</label>
         <input
-          value={surname}
-          onChange={(e) => setSurname(e.target.value)}
+          value={displaySurname}
+          onChange={(e) => setSurnameDraft(e.target.value)}
+          onBlur={() => {
+            if (surnameDraft !== null && surnameDraft !== surname) {
+              setSurname(surnameDraft.trim());
+            }
+            setSurnameDraft(null);
+          }}
           placeholder="예: 김"
           className="w-20 rounded-xl border border-latte bg-cream px-3 py-2 text-center text-sm outline-none focus:border-peach"
         />
@@ -131,7 +126,7 @@ export default function NamesPage() {
           className="mt-2 w-full rounded-xl border border-latte bg-cream px-3 py-2.5 text-sm outline-none focus:border-peach"
         />
         <button
-          onClick={add}
+          onClick={submit}
           disabled={!hangul.trim()}
           className="mt-2 w-full rounded-2xl bg-choco py-3 text-sm font-bold text-cream disabled:opacity-40"
         >
@@ -141,7 +136,7 @@ export default function NamesPage() {
 
       {/* 랭킹 */}
       <section className="flex flex-col gap-3">
-        {loaded && ranked.length === 0 && (
+        {ranked.length === 0 && (
           <p className="py-8 text-center text-sm text-choco-light">
             첫 이름 후보를 올려보세요 💛
           </p>
@@ -165,24 +160,25 @@ export default function NamesPage() {
               <p className="mt-1 text-xs text-choco-light">{n.meaning}</p>
             )}
             <div className="mt-2 flex flex-col gap-1 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-choco">👨 아빠</span>
-                <Stars
-                  value={n.dadScore}
-                  onChange={(v) => setScore(n.id, "dadScore", v)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-choco">👩 엄마</span>
-                <Stars
-                  value={n.momScore}
-                  onChange={(v) => setScore(n.id, "momScore", v)}
-                />
-              </div>
+              {(
+                [
+                  ["dad", "👨 아빠", n.dadScore],
+                  ["mom", "👩 엄마", n.momScore],
+                ] as const
+              ).map(([who, label, score]) => (
+                <div key={who} className="flex items-center justify-between">
+                  <span className="text-choco">{label}</span>
+                  <Stars
+                    value={score}
+                    disabled={!canVote(who)}
+                    onChange={(v) => vote(n.id, who, v)}
+                  />
+                </div>
+              ))}
             </div>
             <div className="mt-1 text-right">
               <button
-                onClick={() => remove(n.id)}
+                onClick={() => confirmRemove(n.id)}
                 className="text-[11px] text-choco-light underline"
               >
                 삭제

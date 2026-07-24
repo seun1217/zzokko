@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import tasks from "@/data/tasks.json";
+import SyncChip from "@/components/SyncChip";
 import { weeklyInfo } from "@/data/weekly";
 import {
   EDD,
@@ -41,9 +42,14 @@ export default function Home() {
 
   return (
     <main className="flex flex-col gap-4">
-      <header className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-extrabold text-choco">쪼꼬 💛</h1>
-        <span className="text-sm text-choco-light">{formatDateKo(today)}</span>
+      <header className="flex flex-col gap-1.5">
+        <div className="flex items-baseline justify-between">
+          <h1 className="text-2xl font-extrabold text-choco">쪼꼬 💛</h1>
+          <span className="text-sm text-choco-light">
+            {formatDateKo(today)}
+          </span>
+        </div>
+        <SyncChip />
       </header>
 
       {/* D-day 히어로 */}

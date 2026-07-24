@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import { FamilyProvider } from "@/lib/family";
 
 export const metadata: Metadata = {
   title: "쪼꼬",
@@ -30,10 +31,12 @@ export default function RootLayout({
   return (
     <html lang="ko" className="h-full antialiased">
       <body className="min-h-full">
-        <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 pb-24 pt-6">
-          {children}
-        </div>
-        <BottomNav />
+        <FamilyProvider>
+          <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 pb-24 pt-6">
+            {children}
+          </div>
+          <BottomNav />
+        </FamilyProvider>
       </body>
     </html>
   );

@@ -19,15 +19,23 @@ npm run build   # 프로덕션 빌드
 | `/checklist` | 체크리스트 — 44개 검진·행정·준비물 일정 (월별 그룹, 완료 체크) | ✅ 동작 |
 | `/journal` | 태담 일기 — 아빠/엄마가 쪼꼬에게 남기는 기록 | ✅ 동작 |
 | `/names` | 이름 후보 — 후보 등록 + 부부 별점 랭킹 | ✅ 동작 |
-| `/album` | 초음파 앨범 | 🚧 Supabase 연동 후 |
+| `/album` | 초음파 앨범 (업로드·타임라인, 비공개 저장소) | ✅ 공유 모드에서 |
+| `/login` | 공유 설정 — 로그인, 가족 공간 생성/초대 코드 참여 | ✅ 동작 |
 
-## 데이터
+## 데이터 모드
+
+Supabase 환경변수(`web/.env.example` 참고) 유무에 따라 자동 전환:
+
+- **미설정 (local 모드)**: 체크·일기·이름을 localStorage에 저장 (기기별).
+  앨범은 잠김. 지금 배포 상태.
+- **설정 (공유 모드)**: 부부가 각자 로그인해 같은 "가족 공간"을 공유.
+  체크리스트·일기·이름·앨범이 실시간(Realtime) 동기화. RLS로 가족 외 접근 차단.
+  설정 방법: [`../docs/SUPABASE.md`](../docs/SUPABASE.md)
 
 - 기준 정보(예정일 2027-03-17)는 [`lib/pregnancy.ts`](lib/pregnancy.ts)에 있음
 - 체크리스트 시드 [`data/tasks.json`](data/tasks.json)은 저장소 루트의 캘린더
   데이터에서 생성: `python3 scripts/export_tasks_json.py > web/data/tasks.json`
-- 현재 기록(체크·일기·이름)은 **localStorage** 저장 — 기기별로 따로 저장되며,
-  Supabase 연동(다음 단계)에서 부부 계정 공유로 전환 예정
+- DB 스키마: [`../supabase/schema.sql`](../supabase/schema.sql)
 
 ## PWA
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useLocalStorage } from "@/lib/useLocalStorage";
+import { useJournal } from "@/lib/hooks";
+import type { Role } from "@/lib/family";
 import {
   NICKNAME,
   formatDateKo,
@@ -9,13 +10,6 @@ import {
   parseISODate,
   todayLocal,
 } from "@/lib/pregnancy";
-
-interface Entry {
-  id: string;
-  date: string; // YYYY-MM-DD
-  author: "dad" | "mom";
-  body: string;
-}
 
 const AUTHOR = {
   dad: { label: "아빠", emoji: "👨", bubble: "bg-latte" },
@@ -30,26 +24,28 @@ function isoToday(): string {
 }
 
 export default function JournalPage() {
-  const [entries, setEntries, loaded] = useLocalStorage<Entry[]>(
-    "zzokko:journal:v1",
-    [],
-  );
-  const [author, setAuthor] = useState<"dad" | "mom">("dad");
+  const { entries, add, remove, shared, myRole } = useJournal();
+  const [author, setAuthor] = useState<Role>("dad");
   const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const save = () => {
+  const effectiveAuthor: Role = shared ? (myRole ?? "dad") : author;
+
+  const save = async () => {
     const text = body.trim();
-    if (!text) return;
-    setEntries((prev) => [
-      { id: crypto.randomUUID(), date: isoToday(), author, body: text },
-      ...prev,
-    ]);
-    setBody("");
+    if (!text || busy) return;
+    setBusy(true);
+    try {
+      await add(effectiveAuthor, isoToday(), text);
+      setBody("");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const remove = (id: string) => {
+  const confirmRemove = async (id: string) => {
     if (!window.confirm("이 일기를 삭제할까요?")) return;
-    setEntries((prev) => prev.filter((e) => e.id !== id));
+    await remove(id);
   };
 
   return (
@@ -63,21 +59,28 @@ export default function JournalPage() {
 
       {/* 작성 */}
       <section className="rounded-3xl bg-white/70 p-4 shadow-sm">
-        <div className="flex gap-2">
-          {(Object.keys(AUTHOR) as Array<keyof typeof AUTHOR>).map((k) => (
-            <button
-              key={k}
-              onClick={() => setAuthor(k)}
-              className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
-                author === k
-                  ? "bg-choco text-cream"
-                  : "bg-cream text-choco-light"
-              }`}
-            >
-              {AUTHOR[k].emoji} {AUTHOR[k].label}
-            </button>
-          ))}
-        </div>
+        {shared ? (
+          <p className="text-sm font-semibold text-choco">
+            {AUTHOR[effectiveAuthor].emoji} {AUTHOR[effectiveAuthor].label}로
+            남기는 중
+          </p>
+        ) : (
+          <div className="flex gap-2">
+            {(Object.keys(AUTHOR) as Role[]).map((k) => (
+              <button
+                key={k}
+                onClick={() => setAuthor(k)}
+                className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
+                  author === k
+                    ? "bg-choco text-cream"
+                    : "bg-cream text-choco-light"
+                }`}
+              >
+                {AUTHOR[k].emoji} {AUTHOR[k].label}
+              </button>
+            ))}
+          </div>
+        )}
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -87,7 +90,7 @@ export default function JournalPage() {
         />
         <button
           onClick={save}
-          disabled={!body.trim()}
+          disabled={!body.trim() || busy}
           className="mt-2 w-full rounded-2xl bg-choco py-3 text-sm font-bold text-cream disabled:opacity-40"
         >
           {NICKNAME}에게 남기기
@@ -96,7 +99,7 @@ export default function JournalPage() {
 
       {/* 목록 */}
       <section className="flex flex-col gap-3">
-        {loaded && entries.length === 0 && (
+        {entries.length === 0 && (
           <p className="py-8 text-center text-sm text-choco-light">
             첫 태담을 남겨보세요 ✍️
           </p>
@@ -121,14 +124,16 @@ export default function JournalPage() {
               <p className="mt-2 whitespace-pre-line text-sm leading-relaxed">
                 {e.body}
               </p>
-              <div className="mt-2 text-right">
-                <button
-                  onClick={() => remove(e.id)}
-                  className="text-[11px] text-choco-light underline"
-                >
-                  삭제
-                </button>
-              </div>
+              {e.mine && (
+                <div className="mt-2 text-right">
+                  <button
+                    onClick={() => confirmRemove(e.id)}
+                    className="text-[11px] text-choco-light underline"
+                  >
+                    삭제
+                  </button>
+                </div>
+              )}
             </article>
           );
         })}

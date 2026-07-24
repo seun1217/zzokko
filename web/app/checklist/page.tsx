@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import tasks from "@/data/tasks.json";
-import { useLocalStorage } from "@/lib/useLocalStorage";
+import { useChecklist } from "@/lib/hooks";
 import {
   formatDateKo,
   formatMonthKo,
@@ -19,10 +19,7 @@ const FILTERS: { key: Filter; label: string }[] = [
 ];
 
 export default function ChecklistPage() {
-  const [done, setDone, loaded] = useLocalStorage<Record<string, string>>(
-    "zzokko:checklist:v1",
-    {},
-  );
+  const { done, toggle, shared } = useChecklist();
   const [filter, setFilter] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [today, setToday] = useState<Date | null>(null);
@@ -43,21 +40,13 @@ export default function ChecklistPage() {
     return [...byMonth.entries()];
   }, [filter, done]);
 
-  const toggle = (id: string) => {
-    setDone((prev) => {
-      const next = { ...prev };
-      if (next[id]) delete next[id];
-      else next[id] = new Date().toISOString();
-      return next;
-    });
-  };
-
   return (
     <main className="flex flex-col gap-4">
       <header>
         <h1 className="text-2xl font-extrabold text-choco">체크리스트 ✅</h1>
         <p className="mt-1 text-sm text-choco-light">
-          검진·행정·준비물 일정 — 캘린더와 같은 데이터예요
+          검진·행정·준비물 일정 —{" "}
+          {shared ? "부부가 실시간으로 함께 체크해요" : "캘린더와 같은 데이터예요"}
         </p>
       </header>
 
@@ -65,7 +54,7 @@ export default function ChecklistPage() {
       <section className="rounded-3xl bg-white/70 p-5 shadow-sm">
         <div className="flex items-baseline justify-between">
           <span className="text-sm font-semibold text-choco">
-            {loaded ? `${doneCount} / ${tasks.length} 완료` : "불러오는 중…"}
+            {doneCount} / {tasks.length} 완료
           </span>
           <span className="text-xs text-choco-light">
             {Math.round((doneCount / tasks.length) * 100)}%
