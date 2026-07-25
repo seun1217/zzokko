@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useNames } from "@/lib/hooks";
+import { useNames, type NameItem } from "@/lib/hooks";
 import type { Role } from "@/lib/family";
 import { NICKNAME } from "@/lib/pregnancy";
 
@@ -37,6 +37,7 @@ export default function NamesPage() {
   const { names, surname, setSurname, add, remove, vote, shared, myRole } =
     useNames();
   const [surnameDraft, setSurnameDraft] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<"added" | "rank">("added");
   const [hangul, setHangul] = useState("");
   const [hanja, setHanja] = useState("");
   const [meaning, setMeaning] = useState("");
@@ -63,9 +64,20 @@ export default function NamesPage() {
 
   const displaySurname = surnameDraft ?? surname;
 
-  const ranked = [...names].sort(
-    (a, b) => b.dadScore + b.momScore - (a.dadScore + a.momScore),
+  const total = (n: NameItem) => n.dadScore + n.momScore;
+
+  // 순위는 항상 점수 기준으로 표시하되, 목록 순서는 기본적으로 등록순으로 고정한다.
+  // 별점을 누를 때마다 카드가 재정렬되면 이어서 배우자 별점을 누르다 다른 이름을
+  // 잘못 누르기 쉽기 때문.
+  const rankById = new Map(
+    [...names]
+      .sort((a, b) => total(b) - total(a))
+      .map((n, i) => [n.id, i + 1] as const),
   );
+  const listed =
+    sortBy === "rank"
+      ? [...names].sort((a, b) => total(b) - total(a))
+      : names;
 
   return (
     <main className="flex flex-col gap-4">
@@ -134,17 +146,43 @@ export default function NamesPage() {
         </button>
       </section>
 
+      {/* 정렬 */}
+      {names.length > 1 && (
+        <div className="flex gap-2">
+          {(
+            [
+              ["added", "등록순"],
+              ["rank", "랭킹순"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setSortBy(key)}
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
+                sortBy === key
+                  ? "bg-choco text-cream"
+                  : "bg-white/70 text-choco-light"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* 랭킹 */}
       <section className="flex flex-col gap-3">
-        {ranked.length === 0 && (
+        {listed.length === 0 && (
           <p className="py-8 text-center text-sm text-choco-light">
             첫 이름 후보를 올려보세요 💛
           </p>
         )}
-        {ranked.map((n, i) => (
+        {listed.map((n) => (
           <article key={n.id} className="rounded-3xl bg-white/70 p-4 shadow-sm">
             <div className="flex items-baseline gap-2">
-              <span className="text-sm font-bold text-peach">{i + 1}위</span>
+              <span className="text-sm font-bold text-peach">
+                {rankById.get(n.id)}위
+              </span>
               <h2 className="text-lg font-extrabold text-choco">
                 {surname.trim()}
                 {n.hangul}
